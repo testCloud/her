@@ -364,7 +364,7 @@ describe Her::Model::Parse do
     end
   end
 
-  context 'parsing an association of a class in a module'
+  context 'parsing an association of a class in a module' do
     before do
       Her::API.setup :url => "https://api.example.com", :send_only_modified_attributes => true do |builder|
         builder.use Her::Middleware::FirstLevelParseJSON
@@ -382,4 +382,36 @@ describe Her::Model::Parse do
     it 'should not raise an error while trying to parse to params' do
       expect{ subject.to_params }.to_not raise_error
     end
+  end
+
+  describe "removing belongs_to associations" do
+    before do
+      Her::API.setup :url => "https://api.example.com" do |builder|
+        builder.use Her::Middleware::DefaultParseJSON
+        builder.use Faraday::Request::UrlEncoded
+      end
+
+      Her::API.default_api.connection.adapter :test do |stub|
+        stub.get("/users/1") { |env| [200, {}, { :id => 1, :first_name => "Tobias", :last_name => "Fünke", :family_id => 1 }.to_json] }
+        stub.get("/families/1") { |env| [200, {}, { :id => 1, :name => "Fünke" }.to_json ] }
+        stub.get("/families/1/users") { |env| [200, {}, [{ :id => 1, :first_name => "Tobias", :last_name => "Fünke", :family_id => 1 }].to_json] }
+      end
+
+      spawn_model "User" do
+        belongs_to :family
+      end
+
+      spawn_model "Family" do
+        has_many :users
+      end
+    end
+
+    it "should not include belongs_to relations" do
+     family = Family.find(1)
+      family_user = family.users.first
+      expect(family_user.to_params[:family]).to be_blank
+    end
+
+  end
+
 end
