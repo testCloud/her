@@ -60,8 +60,10 @@ module Her
           all.select { |a| attributes.include?(a[:data_key]) }.compact.inject({}) do |hash, association|
             params = if attributes[association[:data_key]].respond_to? :to_params
                        attributes[association[:data_key]].to_params
-                     else
+                     elsif attributes[association[:data_key]].is_a?(Array)
                        attributes[association[:data_key]].map(&:to_params)
+                     else
+                       {}
                      end
             #next if params.empty?
             association_klass = her_nearby_class(association[:class_name])
